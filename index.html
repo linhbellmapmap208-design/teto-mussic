@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="Paste a YouTube or SoundCloud link and listen. Part of tetomidi.">
+<title>Listen · tetomidi</title>
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--ink:#fff;--mute:#8d8a80;--line:#262624;--serif:"Instrument Serif","Times New Roman",serif;--sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{min-height:100%;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid #fff;outline-offset:3px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px max(16px,3vw);border-bottom:1px solid var(--line)}
+.back{display:flex;align-items:center;gap:6px;font:400 26px/1 var(--serif)}
+.back img{width:40px;height:40px;object-fit:contain;margin-left:-6px}
+.back i{font-style:italic}
+#tag{color:var(--mute);font-size:14px}
+main{max-width:760px;margin:0 auto;padding:clamp(28px,6vw,64px) max(16px,4vw) 64px}
+h1{font:400 clamp(40px,9vw,72px)/1 var(--serif);letter-spacing:-.01em}
+h1 i{font-style:italic}
+.sub{color:var(--mute);font-size:16px;line-height:1.5;margin:14px 0 26px;max-width:46ch}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+#url{flex:1 1 260px;min-width:0;font:400 16px var(--sans);color:#fff;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:12px 18px}
+#url::placeholder{color:#6f6c63}
+#msg{min-height:22px;margin:12px 4px 0;font-size:14px;color:var(--mute)}
+#msg.err{color:#ff9d9d}
+/* Liquid glass buttons (same look as the other pages) */
+button{font:500 14px var(--sans);color:#fff;cursor:pointer;border-radius:999px;padding:11px 20px;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.04));-webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,.16);box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),inset -1px -1px 0 rgba(255,255,255,.08),inset 0 0 14px rgba(255,255,255,.05),0 10px 28px rgba(0,0,0,.55);transition:transform .3s,background .3s}
+button:hover:not(:disabled){background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.08));transform:translateY(-1px) scale(1.03)}
+button:active:not(:disabled){transform:scale(.96)}
+button:disabled{opacity:.4;cursor:default}
+#go,#play{background:linear-gradient(135deg,rgba(255,255,255,.4),rgba(255,255,255,.14));border-color:rgba(255,255,255,.3);min-width:92px}
+button[aria-pressed="true"]{background:linear-gradient(135deg,rgba(255,255,255,.4),rgba(255,255,255,.14));border-color:rgba(255,255,255,.3)}
+#stage{margin-top:30px}
+#ytbox{position:relative;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+#ytbox iframe,#yt{position:absolute;inset:0;width:100%;height:100%;border:0}
+#scbox{width:100%;height:166px;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+#scbox iframe{width:100%;height:100%;border:0;display:block}
+#now{margin:18px 2px 14px;font:400 clamp(22px,5vw,30px)/1.2 var(--serif);overflow-wrap:anywhere}
+.ctl{display:flex;flex-wrap:wrap;gap:10px}
+.hint{margin:16px 2px 0;color:var(--mute);font-size:13px;line-height:1.55;max-width:60ch}
+h2{font:400 28px/1 var(--serif);margin:44px 0 14px}
+#queue{list-style:none;border-top:1px solid var(--line)}
+#queue li{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+#queue li.on .ttl{color:#fff}
+button.item,button.rm{background:none;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:10px;transform:none}
+button.item{flex:1;min-width:0;display:flex;align-items:center;gap:12px;text-align:left;padding:14px 4px;font-weight:400;font-size:15px}
+button.item:hover:not(:disabled),button.rm:hover:not(:disabled){background:rgba(255,255,255,.06);transform:none}
+.src{flex:none;font-size:11px;letter-spacing:.06em;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:3px 8px}
+.ttl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#bdb9ad}
+button.rm{flex:none;padding:10px 14px;font-size:20px;line-height:1;color:var(--mute)}
+#clear{margin-top:16px}
+.how{margin-top:56px;border-top:1px solid var(--line);padding-top:28px}
+.how ol{margin:14px 0 0 20px;color:var(--mute);font-size:15px;line-height:1.7}
+.how p{color:var(--mute);font-size:14px;line-height:1.6;margin-top:16px;max-width:62ch}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="/" aria-label="Back to the tetomidi home page"><img src="/logo.png" alt=""><span>teto<i>midi</i></span></a>
+  <div id="tag">Listen</div>
+</header>
+
+<main>
+  <h1>Listen<i>.</i></h1>
+  <p class="sub">Paste a YouTube or SoundCloud link, press Play, and the music starts.</p>
+
+  <div class="row">
+    <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://youtu.be/… or https://soundcloud.com/…" aria-label="YouTube or SoundCloud link">
+    <button id="go">Play</button>
+    <button id="add">Add</button>
+  </div>
+  <div id="msg" role="status" aria-live="polite"></div>
+
+  <section id="stage" hidden>
+    <div id="ytbox" hidden><div id="yt"></div></div>
+    <div id="scbox" hidden></div>
+    <div id="now" aria-live="polite"></div>
+    <div class="ctl">
+      <button id="prev" aria-label="Previous track">Prev</button>
+      <button id="play">Play</button>
+      <button id="next" aria-label="Next track">Next</button>
+      <button id="wake" aria-pressed="false" hidden>Keep screen awake</button>
+    </div>
+    <p class="hint">If a track doesn’t start by itself, tap play on the player once; phones block autoplay until you touch the page. With the screen off, SoundCloud often keeps playing. YouTube decides for itself and may pause when the phone locks; press play on the lock screen to continue, or use “Keep screen awake” and lower the brightness.</p>
+  </section>
+
+  <section id="qsec" hidden>
+    <h2>Queue</h2>
+    <ul id="queue"></ul>
+    <button id="clear">Clear queue</button>
+  </section>
+
+  <section class="how">
+    <h2 style="margin-top:0">How it works</h2>
+    <ol>
+      <li>Copy a link from YouTube or SoundCloud (a song, a video or a playlist).</li>
+      <li>Paste it above and press <b>Play</b>, or press <b>Add</b> to put it in the queue.</li>
+      <li>The next track in the queue starts when one ends. Your queue is saved on this device.</li>
+    </ol>
+    <p>Playback uses the official YouTube and SoundCloud players, so the player stays visible and the music comes from them. Short <b>on.soundcloud.com</b> links aren’t supported; open the link first and copy the full soundcloud.com address.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var inp=$("url"),msg=$("msg"),stage=$("stage"),ytbox=$("ytbox"),scbox=$("scbox"),now=$("now"),
+    playB=$("play"),prevB=$("prev"),nextB=$("next"),wakeB=$("wake"),qsec=$("qsec"),ql=$("queue");
+var Q=[],cur=-1,ytp=null,scw=null,playing=false,wantWake=false,wakeLock=null;
+
+/* ---------- queue storage ---------- */
+function valid(x){
+  if(!x)return false;
+  if(x.k==="yt")return /^[\w-]{11}$/.test(x.v||"")||/^[\w-]+$/.test(x.l||"");
+  if(x.k==="sc")return /^https:\/\/soundcloud\.com\/[^\s]+$/.test(x.u||"");
+  return false;
+}
+try{Q=JSON.parse(localStorage.getItem("tm_listen")||"[]").filter(valid)}catch(e){Q=[]}
+function save(){try{localStorage.setItem("tm_listen",JSON.stringify(Q))}catch(e){}}
+function say(t,err){msg.textContent=t||"";msg.className=err?"err":""}
+
+/* ---------- link parsing ---------- */
+function parse(raw){
+  var s=(raw||"").trim();if(!s)return null;
+  if(!/^https?:\/\//i.test(s))s="https://"+s;
+  var u;try{u=new URL(s)}catch(e){return null}
+  var h=u.hostname.toLowerCase().replace(/^(www|m|music)\./,"");
+  if(h==="youtu.be"){
+    var id=u.pathname.slice(1).split("/")[0];
+    return /^[\w-]{11}$/.test(id)?{k:"yt",v:id,t:"YouTube"}:null;
+  }
+  if(h==="youtube.com"||h==="youtube-nocookie.com"){
+    var v=u.searchParams.get("v"),m=u.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})/);
+    if(m)v=m[1];
+    if(v&&/^[\w-]{11}$/.test(v))return{k:"yt",v:v,t:"YouTube"};
+    var l=u.searchParams.get("list");
+    if(l&&/^[\w-]+$/.test(l))return{k:"yt",l:l,t:"YouTube playlist"};
+    return null;
+  }
+  if(h==="on.soundcloud.com")return{err:"Short on.soundcloud.com links aren’t supported. Open it and copy the full soundcloud.com link."};
+  if(h==="w.soundcloud.com"){
+    var inner=u.searchParams.get("url");
+    return inner?parse(inner):null;
+  }
+  if(h==="soundcloud.com"||h==="api.soundcloud.com"){
+    var parts=u.pathname.split("/").filter(Boolean);
+    if(!parts.length||h==="api.soundcloud.com")return null;
+    var title=decodeURIComponent(parts[parts.length-1]).replace(/[-_]+/g," ");
+    return{k:"sc",u:"https://soundcloud.com"+u.pathname,t:title};
+  }
+  return null;
+}
+
+/* ---------- queue UI ---------- */
+function renderQ(){
+  ql.textContent="";
+  Q.forEach(function(it,i){
+    var li=document.createElement("li");if(i===cur)li.className="on";
+    var b=document.createElement("button");b.className="item";b.onclick=function(){playAt(i)};
+    var s=document.createElement("span");s.className="src";s.textContent=it.k==="yt"?"YT":"SC";
+    var t=document.createElement("span");t.className="ttl";t.textContent=it.t||"…";
+    b.appendChild(s);b.appendChild(t);
+    var x=document.createElement("button");x.className="rm";x.setAttribute("aria-label","Remove from queue");x.textContent="×";
+    x.onclick=function(){removeAt(i)};
+    li.appendChild(b);li.appendChild(x);ql.appendChild(li);
+  });
+  qsec.hidden=!Q.length;
+}
+function removeAt(i){
+  if(i===cur){stopAll();cur=-1;stage.hidden=true;now.textContent="";document.title="Listen · tetomidi"}
+  else if(i<cur)cur--;
+  Q.splice(i,1);save();renderQ();
+}
+
+/* ---------- helpers ---------- */
+var loadedJS={};
+function loadScript(src,cb){
+  if(loadedJS[src]===true){cb();return}
+  if(loadedJS[src]){loadedJS[src].push(cb);return}
+  loadedJS[src]=[cb];
+  var s=document.createElement("script");s.src=src;s.async=true;
+  s.onload=function(){var q=loadedJS[src];loadedJS[src]=true;q.forEach(function(f){f()})};
+  s.onerror=function(){loadedJS[src]=null;say("Couldn’t load the player. Check your connection and try again.",1)};
+  document.head.appendChild(s);
+}
+var ytq=[],ytLoading=false;
+function withYT(cb){
+  if(window.YT&&YT.Player){cb();return}
+  ytq.push(cb);
+  if(ytLoading)return;ytLoading=true;
+  window.onYouTubeIframeAPIReady=function(){ytq.splice(0).forEach(function(f){f()})};
+  var s=document.createElement("script");s.src="https://www.youtube.com/iframe_api";s.async=true;
+  s.onerror=function(){ytLoading=false;say("Couldn’t load the YouTube player. Check your connection.",1)};
+  document.head.appendChild(s);
+}
+function setPlaying(b){
+  playing=b;playB.textContent=b?"Pause":"Play";
+  if("mediaSession" in navigator)try{navigator.mediaSession.playbackState=b?"playing":"paused"}catch(e){}
+}
+function setNow(it,art){
+  var t=it.t||"Playing";
+  now.textContent=t+(it.a?" — "+it.a:"");
+  document.title=t+" · tetomidi";
+  if("mediaSession" in navigator)try{
+    navigator.mediaSession.metadata=new MediaMetadata({title:t,artist:it.a||(it.k==="yt"?"YouTube":"SoundCloud"),album:"tetomidi",artwork:art?[{src:art,sizes:"480x360"}]:[]});
+  }catch(e){}
+}
+
+/* ---------- YouTube ---------- */
+function onYT(e){
+  var st=e.data,it=Q[cur];if(!it)return;
+  if(st===1){
+    setPlaying(true);
+    var d=ytp.getVideoData?ytp.getVideoData():null;
+    if(d&&d.title){it.t=d.title;it.a=d.author||"";save();renderQ()}
+    setNow(it,d&&d.video_id?"https://i.ytimg.com/vi/"+d.video_id+"/hqdefault.jpg":"");
+  }else if(st===2){setPlaying(false)}
+  else if(st===0){setPlaying(false);next(true)}
+}
+function onYTError(){
+  say("This video can’t be played here (the owner may have turned off embedding).",1);
+  setPlaying(false);
+  if(cur+1<Q.length)setTimeout(function(){next(true)},1500);
+}
+function loadYT(it){
+  scbox.hidden=true;ytbox.hidden=false;
+  withYT(function(){
+    if(!ytp){
+      var pv={playsinline:1,rel:0,autoplay:1};
+      if(!it.v){pv.listType="playlist";pv.list=it.l}
+      ytp=new YT.Player("yt",{width:"100%",height:"100%",videoId:it.v||undefined,playerVars:pv,
+        events:{onReady:function(e){try{e.target.playVideo()}catch(x){}},onStateChange:onYT,onError:onYTError}});
+    }else if(it.v){ytp.loadVideoById(it.v)}
+    else{ytp.loadPlaylist({list:it.l,listType:"playlist"})}
+  });
+}
+function stopYT(){try{if(ytp&&ytp.stopVideo)ytp.stopVideo()}catch(e){}ytbox.hidden=true}
+
+/* ---------- SoundCloud ---------- */
+function loadSC(it){
+  stopYT();scbox.textContent="";scbox.hidden=false;
+  var f=document.createElement("iframe");
+  f.title="SoundCloud player";f.allow="autoplay";f.setAttribute("scrolling","no");f.setAttribute("frameborder","no");
+  f.src="https://w.soundcloud.com/player/?url="+encodeURIComponent(it.u)+"&auto_play=true&hide_related=true&show_comments=false&show_reposts=false&visual=false";
+  scbox.appendChild(f);
+  loadScript("https://w.soundcloud.com/player/api.js",function(){
+    var w=scw=SC.Widget(f),E=SC.Widget.Events;
+    w.bind(E.PLAY,function(){
+      setPlaying(true);
+      w.getCurrentSound(function(s){
+        if(!s||w!==scw||Q[cur]!==it)return;
+        it.t=s.title||it.t;it.a=s.user&&s.user.username||"";save();renderQ();
+        setNow(it,s.artwork_url?s.artwork_url.replace("-large","-t500x500"):"");
+      });
+    });
+    w.bind(E.PAUSE,function(){setPlaying(false)});
+    w.bind(E.FINISH,function(){
+      w.getSounds(function(list){
+        w.getCurrentSoundIndex(function(i){
+          if(!list||list.length<=1||i>=list.length-1){setPlaying(false);next(true)}
+        });
+      });
+    });
+    w.bind(E.ERROR,function(){say("SoundCloud couldn’t play this link.",1);setPlaying(false)});
+  });
+}
+function stopSC(){try{if(scw)scw.pause()}catch(e){}scw=null;scbox.textContent="";scbox.hidden=true}
+
+/* ---------- transport ---------- */
+function stopAll(){stopYT();stopSC();setPlaying(false)}
+function playAt(i){
+  if(i<0||i>=Q.length)return;
+  var it=Q[i];cur=i;say("");stage.hidden=false;renderQ();setNow(it,"");
+  if(it.k==="yt"){stopSC();loadYT(it)}else{loadSC(it)}
+  stage.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function next(auto){
+  if(!Q.length)return;
+  if(cur+1<Q.length)playAt(cur+1);
+  else if(!auto)playAt(0);
+}
+function prev(){if(Q.length)playAt(cur>0?cur-1:Q.length-1)}
+function toggle(){
+  if(cur<0){if(Q.length)playAt(0);return}
+  var it=Q[cur];
+  try{
+    if(it.k==="yt"&&ytp){ytp.getPlayerState()===1?ytp.pauseVideo():ytp.playVideo()}
+    else if(it.k==="sc"&&scw){scw.toggle()}
+  }catch(e){}
+}
+playB.onclick=toggle;prevB.onclick=prev;nextB.onclick=function(){next(false)};
+
+/* ---------- add / play ---------- */
+function find(p){
+  for(var i=0;i<Q.length;i++){var q=Q[i];if(q.k===p.k&&q.v===p.v&&q.l===p.l&&q.u===p.u)return i}
+  return -1;
+}
+function submit(playNow){
+  var p=parse(inp.value);
+  if(!p){say("That doesn’t look like a YouTube or SoundCloud link.",1);return}
+  if(p.err){say(p.err,1);return}
+  var i=find(p);
+  if(i<0){Q.push(p);i=Q.length-1;save()}
+  inp.value="";renderQ();
+  if(playNow)playAt(i);else say("Added to the queue.");
+}
+$("go").onclick=function(){submit(true)};
+$("add").onclick=function(){submit(false)};
+inp.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();submit(true)}});
+$("clear").onclick=function(){stopAll();Q=[];cur=-1;save();renderQ();stage.hidden=true;now.textContent="";document.title="Listen · tetomidi"};
+
+/* ---------- lock-screen / notification controls ---------- */
+if("mediaSession" in navigator){
+  [["play",toggle],["pause",toggle],["previoustrack",prev],["nexttrack",function(){next(false)}]].forEach(function(a){
+    try{navigator.mediaSession.setActionHandler(a[0],a[1])}catch(e){}
+  });
+}
+
+/* ---------- keep screen awake (optional) ---------- */
+async function setWake(on){
+  try{
+    if(on){
+      wakeLock=await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release",function(){wakeLock=null});
+    }else if(wakeLock){await wakeLock.release();wakeLock=null}
+    wantWake=on;wakeB.setAttribute("aria-pressed",on?"true":"false");
+  }catch(e){wantWake=false;wakeB.setAttribute("aria-pressed","false");say("Couldn’t keep the screen awake on this device.",1)}
+}
+if("wakeLock" in navigator){
+  wakeB.hidden=false;
+  wakeB.onclick=function(){setWake(!wantWake)};
+  document.addEventListener("visibilitychange",function(){if(wantWake&&!wakeLock&&document.visibilityState==="visible")setWake(true)});
+}
+
+renderQ();
+})();
+</script>
+</body>
+</html>
